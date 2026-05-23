@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from "next-auth";
+import { getBaseUrl, safeUrl } from "@/lib/base-url";
 
 /**
  * Edge-safe Auth.js config — used by middleware only.
@@ -12,9 +13,11 @@ export const authConfig = {
   },
   providers: [],
   callbacks: {
-    authorized({ auth, request: { nextUrl } }) {
+    authorized({ auth, request }) {
       const isLoggedIn = !!auth?.user;
+      const nextUrl = request.nextUrl;
       const pathname = nextUrl.pathname;
+      const baseUrl = getBaseUrl(request);
 
       const isProtected =
         pathname.startsWith("/dashboard") || pathname === "/onboarding";
@@ -24,7 +27,7 @@ export const authConfig = {
       }
 
       if (pathname === "/login" && isLoggedIn) {
-        return Response.redirect(new URL("/dashboard", nextUrl));
+        return Response.redirect(safeUrl("/dashboard", baseUrl));
       }
 
       return true;

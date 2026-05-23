@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { signIn } from "@/lib/auth";
+import { getBaseUrlFromHeaders, safeUrl } from "@/lib/base-url";
 import { siteConfig } from "@/config/site";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +11,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
+async function signInWithGoogle() {
+  "use server";
+  const requestHeaders = await headers();
+  const baseUrl = getBaseUrlFromHeaders(requestHeaders);
+  const redirectTo = safeUrl("/dashboard", baseUrl).toString();
+  await signIn("google", { redirectTo });
+}
 
 export default function LoginPage() {
   return (
@@ -21,12 +31,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form
-            action={async () => {
-              "use server";
-              await signIn("google", { redirectTo: "/dashboard" });
-            }}
-          >
+          <form action={signInWithGoogle}>
             <Button type="submit" className="w-full" size="lg">
               Continue with Google
             </Button>
