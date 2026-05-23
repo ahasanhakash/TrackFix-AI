@@ -1,0 +1,398 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth (NextAuth) ─────────────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Core tenancy ────────────────────────────────────────────────────────────
+
+enum PlanTier {
+  MVP
+  PRO
+  AGENCY
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum IntegrationProvider {
+  GOOGLE_ANALYTICS
+  GOOGLE_TAG_MANAGER
+  GOOGLE_ADS
+  GOOGLE_SEARCH_CONSOLE
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  memberships   OrganizationMember[]
+  auditLogs     AuditLog[]
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      PlanTier @default(MVP)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members       OrganizationMember[]
+  integrations  Integration[]
+  properties    Property[]
+  gtmContainers GtmContainer[]
+  ga4Properties Ga4Property[]
+  googleAdsAccounts GoogleAdsAccount[]
+  searchConsoleSites SearchConsoleSite[]
+  automationJobs AutomationJob[]
+  auditLogs     AuditLog[]
+}
+
+model OrganizationMember {
+  id             String     @id @default(cuid())
+  organizationId String
+  userId         String
+  role           MemberRole @default(MEMBER)
+  createdAt      DateTime   @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+model Property {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  domain         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  gtmContainers GtmContainer[]
+  ga4Properties Ga4Property[]
+  searchConsoleSites SearchConsoleSite[]
+
+  @@index([organizationId])
+}
+
+// ─── Integrations ────────────────────────────────────────────────────────────
+
+model Integration {
+  id             String              @id @default(cuid())
+  organizationId String
+  provider       IntegrationProvider
+  externalId     String?
+  label          String?
+  accessToken    String?             @db.Text
+  refreshToken   String?             @db.Text
+  expiresAt      DateTime?
+  metadata       Json?
+  connectedAt    DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, provider])
+  @@index([organizationId])
+}
+
+// ─── GTM Automation ──────────────────────────────────────────────────────────
+
+enum GtmContainerStatus {
+  DRAFT
+  PROVISIONING
+  ACTIVE
+  ERROR
+}
+
+model GtmContainer {
+  id             String             @id @default(cuid())
+  organizationId String
+  propertyId     String?
+  name           String
+  publicId       String?
+  accountId      String?
+  status         GtmContainerStatus @default(DRAFT)
+  ga4Installed   Boolean            @default(false)
+  conversionTracking Boolean        @default(false)
+  callTracking   Boolean            @default(false)
+  formTracking   Boolean            @default(false)
+  ecommerceTracking Boolean         @default(false)
+  serverSideTagging Boolean          @default(false)
+  config         Json?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  property     Property?    @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+}
+
+// ─── GA4 Automation ──────────────────────────────────────────────────────────
+
+model Ga4Property {
+  id             String   @id @default(cuid())
+  organizationId String
+  propertyId     String?
+  name           String
+  measurementId  String?
+  externalPropertyId String?
+  config         Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  property     Property?    @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  events       Ga4Event[]
+  conversions  Ga4Conversion[]
+  audiences    Ga4Audience[]
+
+  @@index([organizationId])
+}
+
+model Ga4Event {
+  id            String   @id @default(cuid())
+  ga4PropertyId String
+  name          String
+  parameters    Json?
+  createdAt     DateTime @default(now())
+
+  ga4Property Ga4Property @relation(fields: [ga4PropertyId], references: [id], onDelete: Cascade)
+
+  @@index([ga4PropertyId])
+}
+
+model Ga4Conversion {
+  id            String   @id @default(cuid())
+  ga4PropertyId String
+  name          String
+  eventName     String
+  createdAt     DateTime @default(now())
+
+  ga4Property Ga4Property @relation(fields: [ga4PropertyId], references: [id], onDelete: Cascade)
+
+  @@index([ga4PropertyId])
+}
+
+model Ga4Audience {
+  id            String   @id @default(cuid())
+  ga4PropertyId String
+  name          String
+  definition    Json?
+  createdAt     DateTime @default(now())
+
+  ga4Property Ga4Property @relation(fields: [ga4PropertyId], references: [id], onDelete: Cascade)
+
+  @@index([ga4PropertyId])
+}
+
+// ─── Google Ads ──────────────────────────────────────────────────────────────
+
+model GoogleAdsAccount {
+  id             String   @id @default(cuid())
+  organizationId String
+  mccId          String?
+  customerId     String?
+  name           String
+  connected      Boolean  @default(false)
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaigns    GoogleAdsCampaign[]
+  negativeKeywords GoogleAdsNegativeKeyword[]
+  optimizationRequests OptimizationRequest[]
+
+  @@index([organizationId])
+}
+
+model GoogleAdsCampaign {
+  id              String   @id @default(cuid())
+  adsAccountId    String
+  externalId      String?
+  name            String
+  status          String?
+  auditScore      Float?
+  lastAuditedAt   DateTime?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  adsAccount GoogleAdsAccount @relation(fields: [adsAccountId], references: [id], onDelete: Cascade)
+
+  @@index([adsAccountId])
+}
+
+model GoogleAdsNegativeKeyword {
+  id           String   @id @default(cuid())
+  adsAccountId String
+  keyword      String
+  matchType    String   @default("BROAD")
+  source       String?
+  createdAt    DateTime @default(now())
+
+  adsAccount GoogleAdsAccount @relation(fields: [adsAccountId], references: [id], onDelete: Cascade)
+
+  @@index([adsAccountId])
+}
+
+enum OptimizationStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  APPLIED
+}
+
+model OptimizationRequest {
+  id           String             @id @default(cuid())
+  adsAccountId String
+  type         String
+  title        String
+  description  String?            @db.Text
+  payload      Json?
+  status       OptimizationStatus @default(PENDING_APPROVAL)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  adsAccount GoogleAdsAccount @relation(fields: [adsAccountId], references: [id], onDelete: Cascade)
+
+  @@index([adsAccountId])
+  @@index([status])
+}
+
+// ─── Search Console ──────────────────────────────────────────────────────────
+
+model SearchConsoleSite {
+  id             String   @id @default(cuid())
+  organizationId String
+  propertyId     String?
+  siteUrl        String
+  verified       Boolean  @default(false)
+  lastSyncedAt   DateTime?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  property     Property?    @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  seoReports   SeoReport[]
+
+  @@index([organizationId])
+}
+
+model SeoReport {
+  id                  String   @id @default(cuid())
+  searchConsoleSiteId String
+  periodStart         DateTime
+  periodEnd           DateTime
+  metrics             Json
+  createdAt           DateTime @default(now())
+
+  searchConsoleSite SearchConsoleSite @relation(fields: [searchConsoleSiteId], references: [id], onDelete: Cascade)
+
+  @@index([searchConsoleSiteId])
+}
+
+// ─── Jobs & audit ────────────────────────────────────────────────────────────
+
+model AutomationJob {
+  id             String    @id @default(cuid())
+  organizationId String
+  module         String
+  action         String
+  status         JobStatus @default(PENDING)
+  input          Json?
+  output         Json?
+  error          String?   @db.Text
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  action         String
+  resource       String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([createdAt])
+}
