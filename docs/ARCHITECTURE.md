@@ -35,9 +35,10 @@
 ## Auth
 
 - **NextAuth v5** with Google OAuth
-- **Prisma adapter** + database sessions
-- Edge-safe `auth.config.ts` for middleware (no Prisma on edge)
-- Full `auth.ts` with adapter for server routes/actions
+- **Prisma adapter** for users/accounts (Node.js only in `auth.ts`)
+- **JWT sessions** so middleware can run on Edge without database calls
+- Edge-safe `auth.config.ts` for middleware only (`providers: []`, no Prisma)
+- Full `auth.ts` with adapter + Google provider for API routes/actions
 
 ## Module map
 
