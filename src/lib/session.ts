@@ -1,6 +1,7 @@
-import { auth } from "@/lib/auth";
+import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
+import { getSessionFromCookies } from "@/lib/auth/server-session";
 import type { Organization, OrganizationMember, PlanTier, User } from "@prisma/client";
 
 export type SessionUser = User & {
@@ -8,11 +9,11 @@ export type SessionUser = User & {
 };
 
 export async function getCurrentUser(): Promise<SessionUser | null> {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  const session = await getSessionFromCookies();
+  if (!session?.userId) return null;
 
   const user = await db.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: session.userId },
     include: {
       memberships: {
         include: { organization: true },
@@ -50,4 +51,9 @@ export async function requireOrganization(
   const organization = await getActiveOrganization(user, orgSlug);
   if (!organization) redirect("/onboarding");
   return { user, organization, plan: organization.plan };
+}
+
+export async function clearSessionCookie(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete("trackfix-session");
 }

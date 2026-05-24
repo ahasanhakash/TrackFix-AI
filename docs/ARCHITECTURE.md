@@ -34,11 +34,9 @@
 
 ## Auth
 
-- **NextAuth v5** with Google OAuth
-- **Prisma adapter** for users/accounts (Node.js only in `auth.ts`)
-- **JWT sessions** so middleware can run on Edge without database calls
-- Edge-safe `auth.config.ts` for middleware only (`providers: []`, no Prisma)
-- Full `auth.ts` with adapter + Google provider for API routes/actions
+- **Firebase Authentication** — Google sign-in (email + profile only)
+- **JWT session cookies** — edge-safe middleware via `jose`
+- **Separate Google integration** — `/connect/google` for Ads/GTM/GA4/GSC OAuth (post-verification)
 
 ## Module map
 
@@ -56,10 +54,11 @@ Long-running Google API work is modeled as `AutomationJob` records. Services cre
 
 ## Deployment (Vercel)
 
-1. Set env vars from `.env.example`
+1. Set env vars from `.env.example` (Firebase client + admin, `AUTH_SECRET`, `DATABASE_URL`)
 2. PostgreSQL: Vercel Postgres, Neon, or Supabase
-3. `prisma migrate deploy` on release
-4. Google OAuth redirect: `https://your-domain.com/api/auth/callback/google`
+3. `prisma db push` or `prisma migrate deploy` on release
+4. Firebase: add authorized domain (your Vercel URL)
+5. Google integration OAuth (later): `GOOGLE_INTEGRATION_*` → `/api/integrations/google/callback`
 
 ## Next implementation steps
 

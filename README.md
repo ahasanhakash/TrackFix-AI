@@ -8,14 +8,15 @@ Production-ready SaaS for GTM, GA4, Google Ads, and Search Console automation wi
 - **TypeScript**
 - **Tailwind CSS** + **shadcn/ui**
 - **Prisma** + **PostgreSQL**
-- **NextAuth.js v5** (Google OAuth)
+- **Firebase Authentication** (Google login — email & profile only)
+- **Prisma** + **PostgreSQL**
 - **Vercel** deploy ready
 
 ## Getting started
 
 ```bash
 cp .env.example .env
-# Fill DATABASE_URL, AUTH_SECRET, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET
+# Fill DATABASE_URL, AUTH_SECRET, Firebase client + admin keys
 
 npm install
 npx prisma db push

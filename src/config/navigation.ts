@@ -3,6 +3,7 @@ import {
   Building2,
   Globe,
   LayoutDashboard,
+  Link2,
   Megaphone,
   Tags,
 } from "lucide-react";
@@ -12,6 +13,12 @@ export const dashboardNav = [
     title: "Overview",
     href: "",
     icon: LayoutDashboard,
+  },
+  {
+    title: "Connect Google",
+    href: "/connect/google",
+    icon: Link2,
+    absolute: true,
   },
   {
     title: "GTM Automation",

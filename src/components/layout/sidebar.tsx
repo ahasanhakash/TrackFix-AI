@@ -25,11 +25,16 @@ export function Sidebar({ orgSlug, plan }: SidebarProps) {
       </div>
       <nav className="flex-1 space-y-1 p-3">
         {dashboardNav.map((item) => {
-          const href = `${base}${item.href}`;
+          const href =
+            "absolute" in item && item.absolute
+              ? item.href
+              : `${base}${item.href}`;
           const active =
-            item.href === ""
-              ? pathname === base
-              : pathname.startsWith(href);
+            "absolute" in item && item.absolute
+              ? pathname.startsWith(item.href)
+              : item.href === ""
+                ? pathname === base
+                : pathname.startsWith(href);
           const Icon = item.icon;
           return (
             <Link
